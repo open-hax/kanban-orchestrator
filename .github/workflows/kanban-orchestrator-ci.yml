@@ -34,7 +34,8 @@ jobs:
             (when (empty? files) (throw (ex-info "no contracts/**/*.edn found" {})))
             (doseq [f files]
               (with-open [r (java.io.PushbackReader. (io/reader f))]
-                (let [n (loop [n 0]
-                          (if (= ::eof (edn/read {:eof ::eof} r)) n (recur (inc n))))]
+                (let [eof (Object.)
+                      n (loop [n 0]
+                          (if (identical? eof (edn/read {:eof eof} r)) n (recur (inc n))))]
                   (when (zero? n) (throw (ex-info (str "empty EDN file: " f) {})))
                   (println "ok" (str f) n "form(s)")))))'
