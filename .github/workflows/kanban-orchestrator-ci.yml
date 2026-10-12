@@ -1,0 +1,40 @@
+name: Kanban Orchestrator CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Kanban Orchestrator contract EDN parse
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+
+      - name: Set up Babashka
+        uses: DeLaGuardo/setup-clojure@ada62bb3282a01a296659d48378b812b8e097360
+        with:
+          bb: "1.13.219"
+
+      - name: Parse every contract EDN form
+        run: |
+          bb -e '
+          (require (quote [clojure.java.io :as io]) (quote [clojure.edn :as edn]))
+          (let [files (->> (file-seq (io/file "contracts"))
+                           (filter #(.endsWith (str %) ".edn"))
+                           (sort-by str))]
+            (when (empty? files) (throw (ex-info "no contracts/**/*.edn found" {})))
+            (doseq [f files]
+              (with-open [r (java.io.PushbackReader. (io/reader f))]
+                (let [n (loop [n 0]
+                          (if (= ::eof (edn/read {:eof ::eof} r)) n (recur (inc n))))]
+                  (when (zero? n) (throw (ex-info (str "empty EDN file: " f) {})))
+                  (println "ok" (str f) n "form(s)")))))'
